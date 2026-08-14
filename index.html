@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Gestion des Cotisations</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#0f2a24">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Cotisations">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<style>
+  :root{
+    --bg:#0f2a24;
+    --bg-soft:#f4f1ea;
+    --panel:#ffffff;
+    --ink:#16241f;
+    --ink-soft:#5b6b64;
+    --accent:#c98a3e;
+    --accent-deep:#8a5a24;
+    --line:#e2ddd0;
+    --paid:#2f7a4f;
+    --unpaid:#c0392b;
+    --radius:10px;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:"Segoe UI", "Trebuchet MS", sans-serif;
+    background:var(--bg-soft);
+    color:var(--ink);
+  }
+  header{
+    background:linear-gradient(135deg,var(--bg) 0%,#173a32 100%);
+    color:#f4f1ea;
+    padding:22px 20px 26px;
+  }
+  header h1{
+    margin:0 0 4px;
+    font-size:1.5rem;
+    letter-spacing:0.3px;
+  }
+  header p{
+    margin:0;
+    color:#c9d9d2;
+    font-size:0.9rem;
+  }
+  .year-box{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    margin-top:12px;
+    background:rgba(255,255,255,0.08);
+    padding:6px 12px;
+    border-radius:20px;
+    font-size:0.9rem;
+  }
+  .year-box input{
+    width:70px;
+    border:none;
+    background:transparent;
+    color:#fff;
+    font-weight:bold;
+    font-size:0.95rem;
+    outline:none;
+    border-bottom:1px solid rgba(255,255,255,0.4);
+  }
+  main{
+    max-width:960px;
+    margin:-16px auto 40px;
+    padding:0 16px;
+  }
+  .card{
+    background:var(--panel);
+    border-radius:var(--radius);
+    box-shadow:0 4px 18px rgba(15,42,36,0.10);
+    padding:18px;
+    margin-bottom:18px;
+    border:1px solid var(--line);
+  }
+  .card h2{
+    margin:0 0 14px;
+    font-size:1.05rem;
+    color:var(--accent-deep);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  form.entry{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  form.entry .full{grid-column:1/-1;}
+  label{
+    display:block;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin-bottom:4px;
+    font-weight:600;
+  }
+  input,select{
+    width:100%;
+    padding:9px 10px;
+    border:1px solid var(--line);
+    border-radius:7px;
+    font-size:0.95rem;
+    background:#fbfaf7;
+    color:var(--ink);
+  }
+  input:focus,select:focus{
+    outline:none;
+    border-color:var(--accent);
+    background:#fff;
+  }
+  .btn{
+    border:none;
+    border-radius:7px;
+    padding:10px 16px;
+    font-size:0.9rem;
+    font-weight:600;
+    cursor:pointer;
+    transition:transform 0.05s ease, opacity 0.15s ease;
+  }
+  .btn:active{transform:scale(0.97);}
+  .btn-primary{
+    background:var(--accent);
+    color:#fff;
+    grid-column:1/-1;
+  }
+  .btn-primary:hover{background:var(--accent-deep);}
+  .btn-outline{
+    background:transparent;
+    border:1px solid var(--accent);
+    color:var(--accent-deep);
+  }
+  .btn-outline:hover{background:#fbeee0;}
+  .btn-danger{
+    background:#fbeae7;
+    color:var(--unpaid);
+    padding:5px 9px;
+    font-size:0.78rem;
+  }
+  .toolbar{
+    display:flex;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:14px;
+  }
+  .toolbar select{width:auto;flex:1;min-width:140px;}
+  table{
+    width:100%;
+    border-collapse:collapse;
+    font-size:0.85rem;
+  }
+  th,td{
+    padding:8px 7px;
+    border-bottom:1px solid var(--line);
+    text-align:left;
+  }
+  th{
+    background:#f7f4ec;
+    color:var(--ink-soft);
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.4px;
+  }
+  tbody tr:hover{background:#faf7f0;}
+  td.amount, th.amount{text-align:right;}
+  .empty{
+    text-align:center;
+    color:var(--ink-soft);
+    padding:24px 10px;
+    font-size:0.88rem;
+  }
+  .summary-wrap{overflow-x:auto;}
+  table.matrix{min-width:820px;}
+  table.matrix th, table.matrix td{
+    text-align:center;
+    padding:6px 5px;
+    font-size:0.75rem;
+  }
+  table.matrix td:first-child, table.matrix th:first-child{
+    text-align:left;
+    position:sticky;
+    left:0;
+    background:#fff;
+    font-weight:600;
+    min-width:130px;
+  }
+  table.matrix th:first-child{background:#f7f4ec;}
+  .paid{color:var(--paid);font-weight:700;}
+  .unpaid{color:#c7c0af;}
+  .totrow td{font-weight:700;background:#f7f4ec;}
+  .totcol{font-weight:700;background:#fbf8f2;}
+  .stats{
+    display:flex;
+    gap:12px;
+    flex-wrap:wrap;
+    margin-bottom:14px;
+  }
+  .stat{
+    flex:1;
+    min-width:130px;
+    background:#f7f4ec;
+    border-radius:8px;
+    padding:10px 12px;
+    border:1px solid var(--line);
+  }
+  .stat .label{font-size:0.7rem;color:var(--ink-soft);text-transform:uppercase;letter-spacing:0.4px;}
+  .stat .value{font-size:1.25rem;font-weight:700;color:var(--accent-deep);margin-top:2px;}
+  .footer-actions{
+    display:flex;
+    justify-content:flex-end;
+    gap:10px;
+    margin-top:6px;
+  }
+  .status-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .status-block{
+    border-radius:8px;
+    padding:10px 12px;
+    border:1px solid var(--line);
+    background:#fbfaf7;
+  }
+  .status-pill{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    color:#fff;
+    border:none;
+    border-radius:20px;
+    padding:5px 12px;
+    font-size:0.78rem;
+    font-weight:700;
+    margin-bottom:8px;
+  }
+  .status-pill .count{
+    background:rgba(255,255,255,0.28);
+    border-radius:10px;
+    padding:0 7px;
+    font-size:0.75rem;
+  }
+  .status-vert{background:#2f7a4f;}
+  .status-bleu{background:#2c6fbb;}
+  .status-jaune{background:#c99a1e; color:#3a2c00;}
+  .status-jaune .count{color:#3a2c00;}
+  .status-rouge-fonce{background:#8f1f1f;}
+  .status-names{
+    font-size:0.83rem;
+    color:var(--ink);
+    line-height:1.7;
+  }
+  .status-names .empty-status{
+    color:var(--ink-soft);
+    font-style:italic;
+    font-size:0.8rem;
+  }
+  @media (max-width:600px){
+    .status-grid{grid-template-columns:1fr;}
+  }
+  @media (max-width:600px){
+    form.entry{grid-template-columns:1fr;}
+  }
+
+  /* --- Login screen --- */
+  #loginScreen{
+    position:fixed;
+    inset:0;
+    background:linear-gradient(135deg,var(--bg) 0%,#173a32 100%);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+    z-index:1000;
+  }
+  .login-box{
+    background:#fff;
+    border-radius:var(--radius);
+    padding:26px 24px;
+    width:100%;
+    max-width:340px;
+    box-shadow:0 10px 30px rgba(0,0,0,0.25);
+  }
+  .login-box h1{
+    font-size:1.3rem;
+    margin:0 0 4px;
+    color:var(--ink);
+    text-align:center;
+  }
+  .login-sub{
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:0.85rem;
+    margin:0 0 18px;
+  }
+  #loginForm label{margin-top:10px;}
+  #loginForm .btn{margin-top:16px;width:100%;}
+  .login-error{
+    color:var(--unpaid);
+    font-size:0.82rem;
+    margin-top:10px;
+    text-align:center;
+    min-height:1em;
+  }
+
+  /* --- Header session bar --- */
+  .header-top{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    gap:12px;
+    flex-wrap:wrap;
+  }
+  .session-box{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    flex-shrink:0;
+  }
+  .session-box #roleLabel{
+    font-size:0.78rem;
+    color:#c9d9d2;
+    background:rgba(255,255,255,0.1);
+    padding:5px 10px;
+    border-radius:20px;
+  }
+  .session-box .btn-outline{
+    background:rgba(255,255,255,0.08);
+    border-color:rgba(255,255,255,0.4);
+    color:#fff;
+  }
+  .session-box .btn-outline:hover{background:rgba(255,255,255,0.18);}
+
+  /* --- Read-only mode (Trésorier) --- */
+  body.readonly-mode #formCotis,
+  body.readonly-mode .btn-danger,
+  body.readonly-mode #btnClearAll,
+  body.readonly-mode #btnShareWhatsapp{
+    display:none !important;
+  }
+  .readonly-banner{
+    display:none;
+    background:#fbeee0;
+    color:var(--accent-deep);
+    border:1px solid var(--accent);
+    border-radius:8px;
+    padding:9px 12px;
+    font-size:0.82rem;
+    margin-bottom:12px;
+  }
+  body.readonly-mode .readonly-banner{display:block;}
+</style>
+</head>
+<body>
+
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>💰 Gestion des Cotisations</h1>
+    <p class="login-sub">Connexion requise</p>
+    <form id="loginForm">
+      <label>Identifiant</label>
+      <input type="text" id="loginUser" autocomplete="username" required placeholder="secretaire ou tresorier">
+      <label>Mot de passe</label>
+      <input type="password" id="loginPass" autocomplete="current-password" required placeholder="••••••••">
+      <button type="submit" class="btn btn-primary full">Se connecter</button>
+      <div id="loginError" class="login-error"></div>
+    </form>
+  </div>
+</div>
+
+<div id="appShell" style="display:none;">
+
+<header>
+  <div class="header-top">
+    <div>
+      <h1>💰 Gestion des Cotisations</h1>
+      <p>Suivi trimestriel des cotisations du groupe — T1 (Jan-Avr) · T2 (Mai-Août) · T3 (Sept-Déc)</p>
+    </div>
+    <div class="session-box">
+      <span id="roleLabel"></span>
+      <button id="btnLogout" class="btn btn-outline" style="padding:6px 12px;font-size:0.8rem;">Déconnexion</button>
+    </div>
+  </div>
+  <div class="year-box">Année :
+    <input type="number" id="anneeInput" value="2026">
+  </div>
+</header>
+
+<main>
+
+  <div class="readonly-banner" id="readonlyBanner">👁 Mode consultation. Vous pouvez consulter et exporter les données, mais pas les modifier.</div>
+
+  <div class="card">
+    <h2>➕ Enregistrer une cotisation</h2>
+    <form class="entry" id="formCotis">
+      <div class="full">
+        <label>Nom et Prénom</label>
+        <input type="text" id="nom" required placeholder="Ex : Awa Diop">
+      </div>
+      <div>
+        <label>Trimestre</label>
+        <select id="mois" required>
+          <option value="">-- Choisir --</option>
+        </select>
+      </div>
+      <div id="montantFixeWrap">
+        <label>Montant (FCFA)</label>
+        <select id="montant" required>
+          <option value="">-- Choisir --</option>
+          <option value="2000">2000 FCFA</option>
+          <option value="12000">12000 FCFA</option>
+          <option value="0">0 FCFA (n'a pas cotisé)</option>
+        </select>
+      </div>
+      <div id="montantLibreWrap" style="display:none;">
+        <label>Montant (FCFA)</label>
+        <input type="number" id="montantLibre" min="0" step="100" placeholder="Ex : 5000">
+      </div>
+      <button type="submit" class="btn btn-primary full">Ajouter la cotisation</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>🚦 Statut des membres</h2>
+    <div class="status-grid" id="statusGrid"></div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:2px;">📋 La liste des cotisations de notre génération</h2>
+    <div class="stats" id="statsBox"></div>
+
+    <div class="toolbar">
+      <select id="filterMois">
+        <option value="">Tous les trimestres</option>
+      </select>
+      <select id="filterMembre">
+        <option value="">Tous les membres</option>
+      </select>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="tableListe">
+        <thead>
+          <tr>
+            <th>N°</th>
+            <th>Nom et Prénom</th>
+            <th>Trimestre</th>
+            <th class="amount">Montant</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="tbodyListe"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📊 Synthèse annuelle par membre</h2>
+    <div class="summary-wrap">
+      <table class="matrix" id="tableMatrix"></table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>📲 Partage WhatsApp</h2>
+    <label>Lien d'invitation du groupe WhatsApp</label>
+    <div style="display:flex; gap:8px;">
+      <input type="text" id="whatsappLink" placeholder="https://chat.whatsapp.com/xxxxxxxx">
+      <button class="btn btn-outline" id="btnSaveWhatsapp" style="flex-shrink:0;">💾</button>
+    </div>
+    <p style="font-size:0.78rem; color:var(--ink-soft); margin:8px 0 0;">Collez ici le lien d'invitation du groupe (menu WhatsApp du groupe → Inviter via lien). Il sera mémorisé sur cet appareil.</p>
+  </div>
+
+  <div class="footer-actions">
+    <button class="btn btn-outline" id="btnClearAll">🗑 Tout effacer</button>
+    <button class="btn btn-outline" id="btnShareWhatsapp">📲 Envoyer le PDF au groupe</button>
+    <button class="btn btn-primary" id="btnPdf">📄 Générer le PDF</button>
+  </div>
+
+</main>
+
+</div>
+
+<script>
+/* ================= AUTHENTIFICATION ================= */
+const COMPTES = [
+  { user:"secretaire", pass:"Sec@Ajdid2026#7", role:"secretaire", label:"Secrétaire" },
+  { user:"tresorier",  pass:"Tre@Ajdid2026#9",  role:"tresorier",  label:"Trésorier" },
+  { user:"commissaire", pass:"Com@Ajdid2026#4", role:"commissaire", label:"Commissaire aux comptes" }
+];
+const SESSION_KEY = "cotisations_session_v1";
+
+function currentSession(){
+  try{ return JSON.parse(sessionStorage.getItem(SESSION_KEY)); }catch(e){ return null; }
+}
+
+function applySession(session){
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("appShell").style.display = "block";
+  document.getElementById("roleLabel").textContent = "Connecté : " + session.label;
+  document.body.classList.toggle("readonly-mode", session.role === "tresorier" || session.role === "commissaire");
+  document.getElementById("readonlyBanner").textContent =
+    "👁 Mode consultation — vous êtes connecté en tant que " + session.label + ". Vous pouvez consulter et exporter les données, mais pas les modifier.";
+}
+
+(function initAuth(){
+  const existing = currentSession();
+  if(existing){
+    applySession(existing);
+  }
+
+  document.getElementById("loginForm").addEventListener("submit", function(ev){
+    ev.preventDefault();
+    const u = document.getElementById("loginUser").value.trim().toLowerCase();
+    const p = document.getElementById("loginPass").value;
+    const errBox = document.getElementById("loginError");
+    const compte = COMPTES.find(c => c.user === u && c.pass === p);
+    if(!compte){
+      errBox.textContent = "Identifiant ou mot de passe incorrect.";
+      return;
+    }
+    errBox.textContent = "";
+    sessionStorage.setItem(SESSION_KEY, JSON.stringify(compte));
+    applySession(compte);
+  });
+
+  document.getElementById("btnLogout").addEventListener("click", function(){
+    sessionStorage.removeItem(SESSION_KEY);
+    location.reload();
+  });
+})();
+/* ================= FIN AUTHENTIFICATION ================= */
+
+const TRIMESTRES = ["Trimestre 1 (Jan-Avr)","Trimestre 2 (Mai-Août)","Trimestre 3 (Sept-Déc)"];
+const HORS_TRIMESTRE = "Hors trimestre";
+const MOIS = [...TRIMESTRES, HORS_TRIMESTRE];
+const STORAGE_KEY = "cotisations_data_v3";
+
+function abbrevPeriode(m){
+  if(m===HORS_TRIMESTRE) return "Hors trim.";
+  return m.replace('Trimestre ','T');
+}
+
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
+
+function save(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function fillMoisSelects(){
+  const moisSelect = document.getElementById("mois");
+  const filterMois = document.getElementById("filterMois");
+  MOIS.forEach(m=>{
+    let o1 = document.createElement("option");
+    o1.value = m; o1.textContent = m;
+    moisSelect.appendChild(o1);
+    let o2 = document.createElement("option");
+    o2.value = m; o2.textContent = m;
+    filterMois.appendChild(o2);
+  });
+}
+
+function fmtMontant(n){
+  return fmtFCFA(n);
+}
+
+function fmtFCFA(n){
+  n = Math.round(Number(n) || 0);
+  const withSpaces = n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+  return withSpaces + " FCFA";
+}
+
+function memberKey(n){
+  return n.trim().toLowerCase();
+}
+
+function getMembers(){
+  const map = new Map();
+  data.forEach(e=>{
+    const k = memberKey(e.nom);
+    if(!map.has(k)) map.set(k,{nom:e.nom});
+  });
+  return Array.from(map.values()).sort((a,b)=> a.nom.localeCompare(b.nom,'fr'));
+}
+
+function refreshFilterMembre(){
+  const sel = document.getElementById("filterMembre");
+  const current = sel.value;
+  sel.innerHTML = '<option value="">Tous les membres</option>';
+  getMembers().forEach(m=>{
+    const o = document.createElement("option");
+    o.value = memberKey(m.nom);
+    o.textContent = m.nom;
+    sel.appendChild(o);
+  });
+  sel.value = current;
+}
+
+function renderStats(){
+  const total = data.reduce((s,e)=>s+Number(e.montant),0);
+  const membres = getMembers().length;
+  const box = document.getElementById("statsBox");
+  box.innerHTML = `
+    <div class="stat"><div class="label">Total collecté</div><div class="value">${fmtMontant(total)}</div></div>
+    <div class="stat"><div class="label">Membres</div><div class="value">${membres}</div></div>
+    <div class="stat"><div class="label">Cotisations enregistrées</div><div class="value">${data.length}</div></div>
+  `;
+}
+
+function renderListe(){
+  const tbody = document.getElementById("tbodyListe");
+  const fm = document.getElementById("filterMois").value;
+  const fmem = document.getElementById("filterMembre").value;
+
+  let rows = data.map((e,idx)=>({...e, idx}));
+  if(fm) rows = rows.filter(e=>e.mois===fm);
+  if(fmem) rows = rows.filter(e=>memberKey(e.nom)===fmem);
+
+  rows.sort((a,b)=>{
+    const nomCmp = a.nom.localeCompare(b.nom,'fr');
+    if(nomCmp!==0) return nomCmp;
+    return MOIS.indexOf(a.mois) - MOIS.indexOf(b.mois);
+  });
+
+  if(rows.length===0){
+    tbody.innerHTML = `<tr><td colspan="5" class="empty">Aucune cotisation enregistrée pour le moment.</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((e,i)=>`
+    <tr>
+      <td>${i+1}</td>
+      <td>${e.nom}</td>
+      <td>${e.mois}</td>
+      <td class="amount">${fmtMontant(e.montant)}</td>
+      <td><button class="btn btn-danger" onclick="deleteEntry(${e.idx})">Suppr.</button></td>
+    </tr>
+  `).join("");
+}
+
+function renderMatrix(){
+  const table = document.getElementById("tableMatrix");
+  const members = getMembers();
+
+  if(members.length===0){
+    table.innerHTML = `<tr><td class="empty">Aucun membre à afficher.</td></tr>`;
+    return;
+  }
+
+  let thead = "<thead><tr><th>N°</th><th>Membre</th>" + MOIS.map(m=>`<th>${abbrevPeriode(m)}</th>`).join("") + "<th class='totcol'>Total</th></tr></thead>";
+
+  let monthTotals = new Array(MOIS.length).fill(0);
+  let grandTotal = 0;
+
+  let bodyRows = members.map((mem,idx)=>{
+    const k = memberKey(mem.nom);
+    let rowTotal = 0;
+    let cells = MOIS.map((m,i)=>{
+      const entry = data.find(e=> memberKey(e.nom)===k && e.mois===m);
+      if(entry){
+        rowTotal += Number(entry.montant);
+        monthTotals[i] += Number(entry.montant);
+        const cls = Number(entry.montant) > 0 ? "paid" : "unpaid";
+        return `<td class="${cls}">${fmtFCFA(entry.montant)}</td>`;
+      }
+      return `<td class="unpaid">—</td>`;
+    }).join("");
+    grandTotal += rowTotal;
+    return `<tr><td>${idx+1}</td><td>${mem.nom}</td>${cells}<td class="totcol">${fmtFCFA(rowTotal)}</td></tr>`;
+  }).join("");
+
+  let totalRow = `<tr class="totrow"><td></td><td>TOTAL</td>` + monthTotals.map(t=>`<td>${fmtFCFA(t)}</td>`).join("") + `<td class="totcol">${fmtFCFA(grandTotal)}</td></tr>`;
+
+  table.innerHTML = thead + "<tbody>" + bodyRows + totalRow + "</tbody>";
+}
+
+function getStatusGroups(){
+  const members = getMembers();
+  const groups = { vert:[], bleu:[], jaune:[], rougeFonce:[] };
+  members.forEach(mem=>{
+    const k = memberKey(mem.nom);
+    const paidCount = TRIMESTRES.filter(m => data.some(e=> memberKey(e.nom)===k && e.mois===m && Number(e.montant)>0)).length;
+    if(paidCount===3) groups.vert.push(mem.nom);
+    else if(paidCount===2) groups.bleu.push(mem.nom);
+    else if(paidCount===1) groups.jaune.push(mem.nom);
+    else groups.rougeFonce.push(mem.nom);
+  });
+  return groups;
+}
+
+function renderStatusGrid(){
+  const grid = document.getElementById("statusGrid");
+  const g = getStatusGroups();
+
+  function block(cls, label, names){
+    const list = names.length
+      ? names.map(n=>`<div>${n}</div>`).join("")
+      : `<div class="empty-status">Aucun membre</div>`;
+    return `
+      <div class="status-block">
+        <span class="status-pill ${cls}">${label} <span class="count">${names.length}</span></span>
+        <div class="status-names">${list}</div>
+      </div>`;
+  }
+
+  grid.innerHTML =
+    block("status-vert", "🟢 À jour (3/3)", g.vert) +
+    block("status-bleu", "🔵 Manque 1 trimestre", g.bleu) +
+    block("status-jaune", "🟡 Manque 2 trimestres", g.jaune) +
+    block("status-rouge-fonce", "🔴 Aucun trimestre payé", g.rougeFonce);
+}
+
+function renderAll(){
+  renderStats();
+  refreshFilterMembre();
+  renderListe();
+  renderMatrix();
+  renderStatusGrid();
+  save();
+}
+
+function deleteEntry(idx){
+  if(!confirm("Supprimer cette cotisation ?")) return;
+  data.splice(idx,1);
+  renderAll();
+}
+
+document.getElementById("mois").addEventListener("change", function(){
+  const isHors = this.value === HORS_TRIMESTRE;
+  const fixeWrap = document.getElementById("montantFixeWrap");
+  const libreWrap = document.getElementById("montantLibreWrap");
+  const selFixe = document.getElementById("montant");
+  const inpLibre = document.getElementById("montantLibre");
+
+  if(isHors){
+    fixeWrap.style.display = "none";
+    libreWrap.style.display = "block";
+    selFixe.required = false;
+    selFixe.value = "";
+    inpLibre.required = true;
+  } else {
+    fixeWrap.style.display = "block";
+    libreWrap.style.display = "none";
+    selFixe.required = true;
+    inpLibre.required = false;
+    inpLibre.value = "";
+  }
+});
+
+document.getElementById("formCotis").addEventListener("submit", function(ev){
+  ev.preventDefault();
+  const nom = document.getElementById("nom").value.trim();
+  const mois = document.getElementById("mois").value;
+  const isHors = mois === HORS_TRIMESTRE;
+  const montant = isHors
+    ? document.getElementById("montantLibre").value
+    : document.getElementById("montant").value;
+
+  if(!nom || !mois || montant==="") return;
+
+  const k = memberKey(nom);
+  const existing = data.find(e=> memberKey(e.nom)===k && e.mois===mois);
+  if(existing){
+    if(!confirm(`${nom} a déjà une cotisation pour ${mois} (${fmtMontant(existing.montant)}). Remplacer ?`)) return;
+    existing.montant = Number(montant);
+  } else {
+    data.push({nom, mois, montant:Number(montant)});
+  }
+
+  renderAll();
+  document.getElementById("montant").value = "";
+  document.getElementById("montantLibre").value = "";
+  document.getElementById("nom").focus();
+});
+
+document.getElementById("filterMois").addEventListener("change", renderListe);
+document.getElementById("filterMembre").addEventListener("change", renderListe);
+
+document.getElementById("btnClearAll").addEventListener("click", function(){
+  if(!data.length) return;
+  if(confirm("Effacer TOUTES les cotisations enregistrées ? Cette action est irréversible.")){
+    data = [];
+    renderAll();
+  }
+});
+
+function buildCotisationsPdf(){
+  const { jsPDF } = window.jspdf;
+  const annee = document.getElementById("anneeInput").value || "";
+
+  // ---- PDF page 1 : Tableau des cotisations (Nom, 3 trimestres, Total) ----
+  const doc = new jsPDF({orientation:"portrait", unit:"mm", format:"a4"});
+  doc.setFontSize(16);
+  doc.setTextColor(22,36,31);
+  doc.text(`La liste des cotisations de notre génération — Année ${annee}`, 14, 16);
+  doc.setFontSize(9);
+  doc.setTextColor(90,100,95);
+  doc.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 22);
+
+  const members = getMembers();
+  const moisAbrev = MOIS.map(abbrevPeriode);
+  const head = [["N°", "Nom et Prénom", ...moisAbrev, "Total"]];
+  let monthTotals = new Array(MOIS.length).fill(0);
+  let grandTotal = 0;
+
+  const body = members.map((mem,idx)=>{
+    const k = memberKey(mem.nom);
+    let rowTotal = 0;
+    const cells = MOIS.map((m,i)=>{
+      const entry = data.find(e=> memberKey(e.nom)===k && e.mois===m);
+      if(entry){
+        rowTotal += Number(entry.montant);
+        monthTotals[i] += Number(entry.montant);
+        return fmtFCFA(entry.montant);
+      }
+      return "—";
+    });
+    grandTotal += rowTotal;
+    return [idx+1, mem.nom, ...cells, fmtFCFA(rowTotal)];
+  });
+
+  const footRow = ["", "TOTAL", ...monthTotals.map(t=>fmtFCFA(t)), fmtFCFA(grandTotal)];
+
+  doc.autoTable({
+    startY:26,
+    head: head,
+    body: body,
+    foot: [footRow],
+    styles:{ fontSize:8.5, cellPadding:3, halign:'center', valign:'middle' },
+    headStyles:{ fillColor:[15,42,36], textColor:255, fontSize:8.5 },
+    footStyles:{ fillColor:[244,241,234], textColor:[22,36,31], fontStyle:'bold', fontSize:8.5 },
+    columnStyles:{
+      0:{halign:'center', cellWidth:10},
+      1:{halign:'left', fontStyle:'bold'}
+    },
+    theme:'grid',
+    margin:{top:26, bottom:14},
+    rowPageBreak:'avoid',
+    tableWidth:'auto'
+  });
+
+  // ---- PDF page 2 : Statut des membres ----
+  doc.addPage("a4","portrait");
+  doc.setFontSize(16);
+  doc.setTextColor(22,36,31);
+  doc.text(`Statut des membres — Année ${annee}`, 14, 16);
+
+  const g = getStatusGroups();
+  const statusRows = [
+    ["🟢 À jour (3/3 trimestres payés)", g.vert.join(", ") || "—", [47,122,79]],
+    ["🔵 Il manque 1 trimestre", g.bleu.join(", ") || "—", [44,111,187]],
+    ["🟡 Il manque 2 trimestres", g.jaune.join(", ") || "—", [201,154,30]],
+    ["🔴 Aucun trimestre payé", g.rougeFonce.join(", ") || "—", [143,31,31]]
+  ];
+
+  let y = 26;
+  statusRows.forEach(([label, names, color])=>{
+    doc.setFillColor(...color);
+    doc.roundedRect(14, y, 5, 5, 1, 1, "F");
+    doc.setFontSize(11);
+    doc.setTextColor(22,36,31);
+    doc.setFont(undefined,'bold');
+    doc.text(label, 22, y+4.2);
+    y += 8;
+    doc.setFont(undefined,'normal');
+    doc.setFontSize(9.5);
+    doc.setTextColor(70,78,74);
+    const wrapped = doc.splitTextToSize(names, 260);
+    doc.text(wrapped, 22, y+3);
+    y += wrapped.length * 5 + 8;
+  });
+
+  return { doc, annee };
+}
+
+document.getElementById("btnPdf").addEventListener("click", function(){
+  if(data.length===0){
+    alert("Aucune cotisation à exporter.");
+    return;
+  }
+  const { doc, annee } = buildCotisationsPdf();
+  doc.save(`cotisations_${annee}.pdf`);
+});
+
+/* ================= PARTAGE WHATSAPP ================= */
+const WA_LINK_KEY = "cotisations_whatsapp_link";
+
+(function initWhatsapp(){
+  const input = document.getElementById("whatsappLink");
+  input.value = localStorage.getItem(WA_LINK_KEY) || "";
+
+  document.getElementById("btnSaveWhatsapp").addEventListener("click", function(){
+    localStorage.setItem(WA_LINK_KEY, input.value.trim());
+    alert("Lien du groupe WhatsApp enregistré sur cet appareil.");
+  });
+})();
+
+document.getElementById("btnShareWhatsapp").addEventListener("click", async function(){
+  const session = currentSession();
+  if(!session || session.role !== "secretaire"){
+    alert("Seul le compte Secrétaire peut envoyer le PDF sur WhatsApp.");
+    return;
+  }
+
+  if(data.length===0){
+    alert("Aucune cotisation à exporter.");
+    return;
+  }
+
+  const { doc, annee } = buildCotisationsPdf();
+  const fileName = `cotisations_${annee}.pdf`;
+  const waLink = (document.getElementById("whatsappLink").value || "").trim();
+  const pdfBlob = doc.output("blob");
+  const pdfFile = new File([pdfBlob], fileName, { type: "application/pdf" });
+
+  // Cas idéal : partage natif Android/Chrome (choix direct de WhatsApp + du groupe)
+  if(navigator.canShare && navigator.canShare({ files:[pdfFile] })){
+    try{
+      await navigator.share({
+        files:[pdfFile],
+        title:"Liste des cotisations",
+        text:`Liste des cotisations — Année ${annee}`
+      });
+      return;
+    }catch(err){
+      // L'utilisateur a annulé le partage, on ne fait rien de plus
+      if(err && err.name === "AbortError") return;
+    }
+  }
+
+  // Repli : téléchargement du PDF + ouverture du lien du groupe pour joindre le fichier manuellement
+  doc.save(fileName);
+  if(waLink){
+    alert("Le PDF a été téléchargé. Le groupe WhatsApp va s'ouvrir : joignez le fichier téléchargé (icône trombone → Document).");
+    window.open(waLink, "_blank");
+  } else {
+    alert("Le PDF a été téléchargé. Renseignez d'abord le lien du groupe WhatsApp ci-dessus, puis joignez le fichier manuellement dans le groupe (icône trombone → Document).");
+  }
+});
+/* ================= FIN PARTAGE WHATSAPP ================= */
+
+fillMoisSelects();
+renderAll();
+
+if("serviceWorker" in navigator){
+  window.addEventListener("load", ()=>{
+    navigator.serviceWorker.register("sw.js").catch(()=>{});
+  });
+}
+</script>
+
+</body>
+</html>
